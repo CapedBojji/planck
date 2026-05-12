@@ -310,4 +310,64 @@ describe("scheduler", function()
 			task.wait()
 		end)
 	end)
+
+	describe("event args", function()
+		test("event args are appended to scheduler args for event-triggered phases", function(_, done)
+			expect.assertions(1)
+
+			local myPhase = Phase.new("myPhase")
+			local bindableEvent = Instance.new("BindableEvent")
+
+			Scheduler.new(1, 2, 3)
+				:insert(myPhase, bindableEvent, bindableEvent.Event)
+				:addSystem(function(...)
+					expect({ ... }).toEqual({ 1, 2, 3, "eventArg" })
+					done()
+				end, myPhase)
+
+			bindableEvent:Fire("eventArg")
+			task.wait()
+		end)
+
+		test("scheduler args are unchanged for non-event phases after event fires", function(_, done)
+			expect.assertions(2)
+
+			local eventPhase = Phase.new("eventPhase")
+			local normalPhase = Phase.new("normalPhase")
+			local bindableEvent = Instance.new("BindableEvent")
+
+			local scheduler = Scheduler.new(1, 2, 3)
+				:insert(normalPhase)
+				:insert(eventPhase, bindableEvent, bindableEvent.Event)
+				:addSystem(function(...)
+					expect({ ... }).toEqual({ 1, 2, 3, "eventArg" })
+				end, eventPhase)
+
+			scheduler:addSystem(function(...)
+				expect({ ... }).toEqual({ 1, 2, 3 })
+				done()
+			end, normalPhase)
+
+			bindableEvent:Fire("eventArg")
+			task.wait()
+			scheduler:run(normalPhase)
+		end)
+
+		test("multiple event args are appended in order", function(_, done)
+			expect.assertions(1)
+
+			local myPhase = Phase.new("myPhase")
+			local bindableEvent = Instance.new("BindableEvent")
+
+			Scheduler.new("a", "b")
+				:insert(myPhase, bindableEvent, bindableEvent.Event)
+				:addSystem(function(...)
+					expect({ ... }).toEqual({ "a", "b", "x", "y", "z" })
+					done()
+				end, myPhase)
+
+			bindableEvent:Fire("x", "y", "z")
+			task.wait()
+		end)
+	end)
 end)

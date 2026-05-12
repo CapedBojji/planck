@@ -1306,7 +1306,7 @@ function Scheduler._scheduleEvent<U...>(self: Scheduler<U...>, instance, event)
 
 	local dependencyGraph = DependencyGraph.new()
 
-	local callback = function()
+	local callback = function(...)
 		local orderedList = dependencyGraph:getOrderedList()
 
 		if orderedList == nil then
@@ -1324,9 +1324,21 @@ function Scheduler._scheduleEvent<U...>(self: Scheduler<U...>, instance, event)
 			return
 		end
 
+		local eventArgs = { ... }
+		local originalVargs = self._vargs
+		if #eventArgs > 0 then
+			local combined = table.clone(originalVargs)
+			for _, v in eventArgs do
+				table.insert(combined, v)
+			end
+			self._vargs = combined
+		end
+
 		for _, dependency in orderedList do
 			self:run(dependency :: any)
 		end
+
+		self._vargs = originalVargs
 	end
 
 	self._connectedEvents[identifier] = connect(callback)
